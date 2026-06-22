@@ -1,7 +1,7 @@
 {
   "name": "@TalaourarAli/tizen-onvif",
   "version": "1.0.0",
-  "packageType": "mods",
+  "packageType": "app",
   "appName": "Caméra ONVIF",
   "appPath": "app/index.html",
   "serviceFile": "service.js",

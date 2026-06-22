@@ -10,7 +10,7 @@ const server = http.createServer((req, res) => {
         // Exemple de réponse :
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
-            streamUrl: "rtsp://admin:password@1192.168.1.50:554/stream1" 
+            streamUrl: "rtsp://admin:password@192.168.1.50:554/stream1" 
         }));
     }
 });
