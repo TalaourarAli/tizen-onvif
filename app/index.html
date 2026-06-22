@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Moniteur ONVIF</title>
+    <style>
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; text-align: center; }
+        video { width: 100vw; height: 100vh; object-fit: contain; }
+        #status { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="status">Connexion à la caméra...</div>
+    <video id="camVideo" autoplay controls></video>
+
+    <script>
+        // 1. Demander l'URL du flux au service Node.js local
+        fetch('http://127.0.0.1:4545/get-stream')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('status').innerText = "Flux chargé";
+                
+                const video = document.getElementById('camVideo');
+                // Note : Si ta caméra fournit du HLS (.m3u8), la TV le lira nativement. 
+                // Si c'est du RTSP brut, il faudra utiliser l'objet Tizen webapis.avplay.
+                video.src = data.streamUrl; 
+            })
+            .catch(err => {
+                document.getElementById('status').innerText = "Erreur: " + err.message;
+            });
+
+        // Gestion du bouton Retour de la télécommande pour quitter le module
+        window.addEventListener('tizenhwkey', (e) => {
+            if (e.keyName === 'back') {
+                window.history.back();
+            }
+        });
+    </script>
+</body>
+</html>
