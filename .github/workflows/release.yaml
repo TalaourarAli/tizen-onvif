@@ -1,0 +1,24 @@
+name: Build and Release Module
+
+on:
+  push:
+    tags:
+      - 'v*' # Se déclenche quand tu pousses un tag (ex: v1.0.0)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Zip Archive
+        # On compresse le contenu du dossier (en excluant le dossier .github)
+        run: zip -r module.zip . -x "*.git*" ".github/*"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: module.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
