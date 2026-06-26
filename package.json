@@ -1,6 +1,6 @@
 {
-  "name": "@talaourarali/tizen-onvif",
-  "version": "1.0.2",
+  "name": "@alitala48/tizen-onvif",
+  "version": "1.0.3",
   "packageType": "app",
   "appName": "Caméra ONVIF",
   "appPath": "app/index.html",
