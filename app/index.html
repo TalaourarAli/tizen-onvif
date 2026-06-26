@@ -4,38 +4,364 @@
     <meta charset="UTF-8">
     <title>Moniteur ONVIF</title>
     <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; text-align: center; }
-        video { width: 100vw; height: 100vh; object-fit: contain; }
-        #status { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 10px; }
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: radial-gradient(circle at 50% 50%, #17123a 0%, #070414 100%);
+            color: #e2e8f0;
+            font-family: 'Outfit', sans-serif;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Effets de halo lumineux */
+        .glow-bg {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+            top: -150px;
+            left: -150px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .glow-bg-2 {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+            bottom: -150px;
+            right: -150px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 24px;
+            padding: 35px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .input-field {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.25s ease;
+        }
+
+        .input-field:focus {
+            border-color: #6366f1;
+            background: rgba(255, 255, 255, 0.09);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+            transform: scale(1.02);
+        }
+
+        .btn {
+            width: 100%;
+            background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 15px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+            margin-top: 10px;
+        }
+
+        .btn:focus {
+            transform: scale(1.03);
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.6);
+            background: linear-gradient(135deg, #4f46e5 0%, #db2777 100%);
+        }
+
+        .instruction {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #64748b;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* Zone Vidéo Plein Écran */
+        #video-container {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 100;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #status {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            background: rgba(15, 11, 39, 0.75);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            z-index: 110;
+        }
     </style>
 </head>
 <body>
 
-    <div id="status">Connexion à la caméra...</div>
-    <video id="camVideo" autoplay controls></video>
+    <div class="glow-bg"></div>
+    <div class="glow-bg-2"></div>
+
+    <!-- ÉCRAN CONFIGURATION -->
+    <div id="settings-container" class="container">
+        <div class="card">
+            <h1>Configuration ONVIF</h1>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="input-ip">IP Caméra</label>
+                    <input type="text" id="input-ip" class="input-field" placeholder="192.168.1.50">
+                </div>
+                <div class="form-group" style="flex: 0 0 120px;">
+                    <label for="input-port">Port RTSP</label>
+                    <input type="number" id="input-port" class="input-field" placeholder="554">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="input-user">Utilisateur</label>
+                    <input type="text" id="input-user" class="input-field" placeholder="admin">
+                </div>
+                <div class="form-group">
+                    <label for="input-pass">Mot de passe</label>
+                    <input type="password" id="input-pass" class="input-field" placeholder="••••••••">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="input-path">Chemin du flux (RTSP)</label>
+                <input type="text" id="input-path" class="input-field" placeholder="stream1">
+            </div>
+
+            <button id="btn-submit" class="btn">Lancer le flux</button>
+            
+            <div class="instruction">
+                Utilisez les flèches <span style="color: #a5b4fc">▲ ▼</span> de la télécommande pour naviguer.<br>
+                Appuyez sur <span style="color: #a5b4fc">OK</span> pour valider ou <span style="color: #a5b4fc">Retour</span> pour quitter.
+            </div>
+        </div>
+    </div>
+
+    <!-- ÉCRAN LECTEUR VIDÉO -->
+    <div id="video-container">
+        <div id="status">Connexion à la caméra...</div>
+        <video id="camVideo" autoplay controls></video>
+    </div>
 
     <script>
-        // 1. Demander l'URL du flux au service Node.js local
-        fetch('http://127.0.0.1:4545/get-stream')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('status').innerText = "Flux chargé";
-                
-                const video = document.getElementById('camVideo');
-                // Note : Si ta caméra fournit du HLS (.m3u8), la TV le lira nativement. 
-                // Si c'est du RTSP brut, il faudra utiliser l'objet Tizen webapis.avplay.
-                video.src = data.streamUrl; 
-            })
-            .catch(err => {
-                document.getElementById('status').innerText = "Erreur: " + err.message;
-            });
+        const focusableIds = ['input-ip', 'input-port', 'input-user', 'input-pass', 'input-path', 'btn-submit'];
+        let focusIndex = 0;
+        let state = 'settings'; // 'settings' | 'stream'
 
-        // Gestion du bouton Retour de la télécommande pour quitter le module
-        window.addEventListener('tizenhwkey', (e) => {
-            if (e.keyName === 'back') {
-                window.history.back();
+        document.addEventListener('DOMContentLoaded', () => {
+            // Charger les valeurs sauvegardées ou valeurs par défaut
+            document.getElementById('input-ip').value = localStorage.getItem('onvif_ip') || '192.168.1.50';
+            document.getElementById('input-port').value = localStorage.getItem('onvif_port') || '554';
+            document.getElementById('input-user').value = localStorage.getItem('onvif_user') || 'admin';
+            document.getElementById('input-pass').value = localStorage.getItem('onvif_pass') || 'password';
+            document.getElementById('input-path').value = localStorage.getItem('onvif_path') || 'stream1';
+
+            updateFocus();
+        });
+
+        function updateFocus() {
+            if (state !== 'settings') return;
+            const activeId = focusableIds[focusIndex];
+            const activeEl = document.getElementById(activeId);
+            if (activeEl) {
+                activeEl.focus();
+            }
+        }
+
+        // Navigation clavier et télécommande
+        window.addEventListener('keydown', (e) => {
+            if (state === 'settings') {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    focusIndex = (focusIndex + 1) % focusableIds.length;
+                    updateFocus();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    focusIndex = (focusIndex - 1 + focusableIds.length) % focusableIds.length;
+                    updateFocus();
+                } else if (e.key === 'Enter') {
+                    if (focusableIds[focusIndex] === 'btn-submit') {
+                        e.preventDefault();
+                        launchStream();
+                    }
+                } else if (e.keyCode === 10009) { // Touche Retour Tizen
+                    e.preventDefault();
+                    exitApp();
+                }
+            } else if (state === 'stream') {
+                // Quitter la lecture et revenir au menu
+                if (e.keyCode === 10009 || e.key === 'Escape' || e.key === 'Backspace') {
+                    e.preventDefault();
+                    stopStream();
+                }
             }
         });
+
+        // Gestion de la touche Retour matérielle Tizen
+        window.addEventListener('tizenhwkey', (e) => {
+            if (e.keyName === 'back') {
+                if (state === 'stream') {
+                    e.preventDefault();
+                    stopStream();
+                } else {
+                    e.preventDefault();
+                    exitApp();
+                }
+            }
+        });
+
+        function exitApp() {
+            try {
+                tizen.application.getCurrentApplication().exit();
+            } catch (err) {
+                window.history.back();
+            }
+        }
+
+        function launchStream() {
+            const ip = document.getElementById('input-ip').value;
+            const port = document.getElementById('input-port').value;
+            const user = document.getElementById('input-user').value;
+            const pass = document.getElementById('input-pass').value;
+            const path = document.getElementById('input-path').value;
+
+            // Sauvegarde dans localStorage
+            localStorage.setItem('onvif_ip', ip);
+            localStorage.setItem('onvif_port', port);
+            localStorage.setItem('onvif_user', user);
+            localStorage.setItem('onvif_pass', pass);
+            localStorage.setItem('onvif_path', path);
+
+            // Masquer la configuration et afficher la vidéo
+            state = 'stream';
+            document.getElementById('settings-container').style.display = 'none';
+            document.getElementById('video-container').style.display = 'block';
+            document.getElementById('status').innerText = "Connexion au service...";
+
+            // Appel dynamique au serveur de service
+            const queryParams = `ip=${encodeURIComponent(ip)}&port=${encodeURIComponent(port)}&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}&path=${encodeURIComponent(path)}`;
+            
+            fetch(`http://127.0.0.1:4545/get-stream?${queryParams}`)
+                .then(res => {
+                    if (!res.ok) throw new Error("Impossible de joindre le service local");
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById('status').innerText = "Flux chargé (Retour pour quitter)";
+                    const video = document.getElementById('camVideo');
+                    video.src = data.streamUrl;
+                    video.play().catch(playErr => {
+                        document.getElementById('status').innerText = "Erreur de lecture: " + playErr.message;
+                    });
+                })
+                .catch(err => {
+                    document.getElementById('status').innerText = "Erreur service: " + err.message + " (Vérifiez le service.js)";
+                });
+        }
+
+        function stopStream() {
+            state = 'settings';
+            const video = document.getElementById('camVideo');
+            video.pause();
+            video.src = "";
+            document.getElementById('video-container').style.display = 'none';
+            document.getElementById('settings-container').style.display = 'flex';
+            updateFocus();
+        }
     </script>
 </body>
 </html>

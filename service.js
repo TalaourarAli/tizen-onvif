@@ -1,17 +1,28 @@
 const http = require('http');
-// Astuce : Tu peux embarquer une lib onvif light ou faire des requêtes fetch SOAP directement vers ta caméra
+const url = require('url');
 
 // Crée un mini serveur local pour communiquer avec ton interface HTML
 const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     
-    if (req.url === '/get-stream') {
-        // Logique ONVIF pour récupérer le profil de la caméra et l'URL du flux
-        // Exemple de réponse :
+    const parsedUrl = url.parse(req.url, true);
+    
+    if (parsedUrl.pathname === '/get-stream') {
+        const query = parsedUrl.query;
+        const ip = query.ip || '192.168.1.50';
+        const port = query.port || '554';
+        const user = query.user || 'admin';
+        const pass = query.pass || 'password';
+        const path = query.path || 'stream1';
+
+        // Logique ONVIF dynamique ou construction directe du flux
+        const streamUrl = `rtsp://${user}:${pass}@${ip}:${port}/${path}`;
+        
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ 
-            streamUrl: "rtsp://admin:password@192.168.1.50:554/stream1" 
-        }));
+        res.end(JSON.stringify({ streamUrl }));
+    } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
     }
 });
 
