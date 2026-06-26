@@ -15,8 +15,17 @@ const server = http.createServer((req, res) => {
         const pass = query.pass || 'password';
         const path = query.path || 'stream1';
 
+        // Éviter les doubles slashes (ex: si le chemin commence par /)
+        let normalizedPath = path;
+        if (normalizedPath.startsWith('/')) {
+            normalizedPath = normalizedPath.substring(1);
+        }
+
+        // Si aucun port n'est spécifié, ne pas ajouter de double point
+        const portSuffix = port ? `:${port}` : '';
+
         // Logique ONVIF dynamique ou construction directe du flux
-        const streamUrl = `rtsp://${user}:${pass}@${ip}:${port}/${path}`;
+        const streamUrl = `rtsp://${user}:${pass}@${ip}${portSuffix}/${normalizedPath}`;
         
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ streamUrl }));

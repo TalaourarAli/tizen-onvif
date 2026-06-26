@@ -183,6 +183,47 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             z-index: 110;
         }
+
+        /* HUD Overlay */
+        #video-hud {
+            position: absolute;
+            bottom: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            background: rgba(15, 11, 39, 0.85);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 15px 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            z-index: 120;
+            transition: opacity 0.3s ease;
+            opacity: 0;
+        }
+
+        .hud-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 24px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            margin: 0;
+            width: auto;
+        }
+
+        .hud-btn:focus {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(236, 72, 153, 0.6);
+            background: linear-gradient(135deg, #4f46e5 0%, #db2777 100%);
+        }
     </style>
 </head>
 <body>
@@ -198,7 +239,7 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="input-ip">IP Caméra</label>
-                    <input type="text" id="input-ip" class="input-field" placeholder="192.168.1.50">
+                    <input type="text" id="input-ip" class="input-field" placeholder="192.168.10.103">
                 </div>
                 <div class="form-group" style="flex: 0 0 120px;">
                     <label for="input-port">Port RTSP</label>
@@ -219,7 +260,7 @@
 
             <div class="form-group">
                 <label for="input-path">Chemin du flux (RTSP)</label>
-                <input type="text" id="input-path" class="input-field" placeholder="stream1">
+                <input type="text" id="input-path" class="input-field" placeholder="cam/realmonitor?channel=1&subtype=0...">
             </div>
 
             <button id="btn-submit" class="btn">Lancer le flux</button>
@@ -235,31 +276,81 @@
     <div id="video-container">
         <div id="status">Connexion à la caméra...</div>
         <video id="camVideo" autoplay controls></video>
+        
+        <!-- HUD de contrôle -->
+        <div id="video-hud">
+            <button id="btn-hud-config" class="btn hud-btn">⚙️ Modifier la configuration</button>
+        </div>
     </div>
 
     <script>
         const focusableIds = ['input-ip', 'input-port', 'input-user', 'input-pass', 'input-path', 'btn-submit'];
         let focusIndex = 0;
         let state = 'settings'; // 'settings' | 'stream'
+        let hudTimer = null;
+        let isHudVisible = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             // Charger les valeurs sauvegardées ou valeurs par défaut
-            document.getElementById('input-ip').value = localStorage.getItem('onvif_ip') || '192.168.1.50';
-            document.getElementById('input-port').value = localStorage.getItem('onvif_port') || '554';
-            document.getElementById('input-user').value = localStorage.getItem('onvif_user') || 'admin';
-            document.getElementById('input-pass').value = localStorage.getItem('onvif_pass') || 'password';
-            document.getElementById('input-path').value = localStorage.getItem('onvif_path') || 'stream1';
+            const savedIp = localStorage.getItem('onvif_ip');
+            const savedPort = localStorage.getItem('onvif_port');
+            const savedUser = localStorage.getItem('onvif_user');
+            const savedPass = localStorage.getItem('onvif_pass');
+            const savedPath = localStorage.getItem('onvif_path');
+
+            document.getElementById('input-ip').value = savedIp || '192.168.10.103';
+            document.getElementById('input-port').value = savedPort || '554';
+            document.getElementById('input-user').value = savedUser || 'admin';
+            document.getElementById('input-pass').value = savedPass || 'password';
+            document.getElementById('input-path').value = savedPath || 'cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif';
 
             updateFocus();
+
+            // Lancement automatique si déjà configuré
+            if (savedIp && savedUser) {
+                launchStream();
+            }
         });
 
         function updateFocus() {
-            if (state !== 'settings') return;
-            const activeId = focusableIds[focusIndex];
-            const activeEl = document.getElementById(activeId);
-            if (activeEl) {
-                activeEl.focus();
+            if (state === 'settings') {
+                const activeId = focusableIds[focusIndex];
+                const activeEl = document.getElementById(activeId);
+                if (activeEl) {
+                    activeEl.focus();
+                }
+            } else if (state === 'stream' && isHudVisible) {
+                document.getElementById('btn-hud-config').focus();
             }
+        }
+
+        // Affichage/Masquage du HUD
+        function showHUD() {
+            if (hudTimer) clearTimeout(hudTimer);
+            
+            const hud = document.getElementById('video-hud');
+            hud.style.display = 'block';
+            hud.offsetHeight; // force reflow
+            hud.style.opacity = '1';
+            
+            isHudVisible = true;
+            updateFocus();
+
+            hudTimer = setTimeout(() => {
+                hideHUD();
+            }, 5000);
+        }
+
+        function hideHUD() {
+            const hud = document.getElementById('video-hud');
+            hud.style.opacity = '0';
+            isHudVisible = false;
+            
+            setTimeout(() => {
+                if (!isHudVisible) {
+                    hud.style.display = 'none';
+                }
+            }, 300);
         }
 
         // Navigation clavier et télécommande
@@ -283,10 +374,22 @@
                     exitApp();
                 }
             } else if (state === 'stream') {
-                // Quitter la lecture et revenir au menu
                 if (e.keyCode === 10009 || e.key === 'Escape' || e.key === 'Backspace') {
                     e.preventDefault();
-                    stopStream();
+                    if (isHudVisible) {
+                        hideHUD();
+                    } else {
+                        stopStream();
+                    }
+                } else {
+                    // Toute autre touche affiche le HUD
+                    if (!isHudVisible) {
+                        e.preventDefault();
+                        showHUD();
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        stopStream(); // Retour à l'écran de configuration
+                    }
                 }
             }
         });
@@ -294,11 +397,14 @@
         // Gestion de la touche Retour matérielle Tizen
         window.addEventListener('tizenhwkey', (e) => {
             if (e.keyName === 'back') {
+                e.preventDefault();
                 if (state === 'stream') {
-                    e.preventDefault();
-                    stopStream();
+                    if (isHudVisible) {
+                        hideHUD();
+                    } else {
+                        stopStream();
+                    }
                 } else {
-                    e.preventDefault();
                     exitApp();
                 }
             }
@@ -319,20 +425,19 @@
             const pass = document.getElementById('input-pass').value;
             const path = document.getElementById('input-path').value;
 
-            // Sauvegarde dans localStorage
+            // Sauvegarde locale
             localStorage.setItem('onvif_ip', ip);
             localStorage.setItem('onvif_port', port);
             localStorage.setItem('onvif_user', user);
             localStorage.setItem('onvif_pass', pass);
             localStorage.setItem('onvif_path', path);
 
-            // Masquer la configuration et afficher la vidéo
             state = 'stream';
             document.getElementById('settings-container').style.display = 'none';
             document.getElementById('video-container').style.display = 'block';
             document.getElementById('status').innerText = "Connexion au service...";
 
-            // Appel dynamique au serveur de service
+            // Appel dynamique au service local
             const queryParams = `ip=${encodeURIComponent(ip)}&port=${encodeURIComponent(port)}&user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}&path=${encodeURIComponent(path)}`;
             
             fetch(`http://127.0.0.1:4545/get-stream?${queryParams}`)
@@ -341,7 +446,7 @@
                     return res.json();
                 })
                 .then(data => {
-                    document.getElementById('status').innerText = "Flux chargé (Retour pour quitter)";
+                    document.getElementById('status').innerText = "Flux chargé (Appuyez sur une touche pour la configuration)";
                     const video = document.getElementById('camVideo');
                     video.src = data.streamUrl;
                     video.play().catch(playErr => {
@@ -349,17 +454,29 @@
                     });
                 })
                 .catch(err => {
-                    document.getElementById('status').innerText = "Erreur service: " + err.message + " (Vérifiez le service.js)";
+                    document.getElementById('status').innerText = "Erreur service: " + err.message;
+                    // Retour automatique au formulaire après 4 secondes
+                    setTimeout(() => {
+                        if (state === 'stream') {
+                            stopStream();
+                        }
+                    }, 4000);
                 });
         }
 
         function stopStream() {
             state = 'settings';
+            isHudVisible = false;
+            if (hudTimer) clearTimeout(hudTimer);
+            
             const video = document.getElementById('camVideo');
             video.pause();
             video.src = "";
+            
             document.getElementById('video-container').style.display = 'none';
+            document.getElementById('video-hud').style.display = 'none';
             document.getElementById('settings-container').style.display = 'flex';
+            
             updateFocus();
         }
     </script>
