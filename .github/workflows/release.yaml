@@ -5,23 +5,33 @@ on:
     tags:
       - 'v*'
 
-# 🔴 AJOUTE CE BLOC ICI
 permissions:
   contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Create Zip Archive
-        run: zip -r module.zip . -x "*.git*" ".github/*"
+        run: zip -r tizen-onvif-module.zip . -x "*.git*" ".github/*"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2 # 🔄 Mis à jour en v2
+        uses: softprops/action-gh-release@v2
         with:
-          files: module.zip
+          files: tizen-onvif-module.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
