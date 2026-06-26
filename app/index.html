@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Moniteur ONVIF</title>
+    <!-- Chargement de l'API webapis de Samsung Tizen pour AVPlay -->
+    <script src="$WEBAPIS/webapis/webapis.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
 
@@ -275,10 +277,14 @@
     <!-- ÉCRAN LECTEUR VIDÉO -->
     <div id="video-container">
         <div id="status">Connexion à la caméra...</div>
-        <video id="camVideo" autoplay controls></video>
+        <!-- Lecteur natif AVPlay (Tizen TV) -->
+        <object id="avplay" type="application/avplayer" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 105;"></object>
+        
+        <!-- Lecteur standard HTML5 (Fallback pour PC/navigateurs de test) -->
+        <video id="camVideo" style="display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 106;" autoplay controls></video>
         
         <!-- HUD de contrôle -->
-        <div id="video-hud">
+        <div id="video-hud" style="z-index: 120;">
             <button id="btn-hud-config" class="btn hud-btn">⚙️ Modifier la configuration</button>
         </div>
     </div>
@@ -418,6 +424,8 @@
             }
         }
 
+        let avplayInitialized = false;
+
         function launchStream() {
             const ip = document.getElementById('input-ip').value;
             const port = document.getElementById('input-port').value;
@@ -446,14 +454,84 @@
                     return res.json();
                 })
                 .then(data => {
-                    document.getElementById('status').innerText = "Flux chargé (Appuyez sur une touche pour la configuration)";
-                    const video = document.getElementById('camVideo');
-                    video.src = data.streamUrl;
-                    video.play().catch(playErr => {
-                        document.getElementById('status').innerText = "Erreur de lecture: " + playErr.message;
-                    });
+                    document.getElementById('status').innerText = "Initialisation du lecteur...";
+                    
+                    const urlToPlay = data.streamUrl;
+                    console.log("Lecture du flux via AVPlay :", urlToPlay);
+
+                    if (typeof webapis !== 'undefined' && webapis.avplay) {
+                        try {
+                            // S'assurer qu'on commence sur un état propre
+                            if (avplayInitialized) {
+                                try { webapis.avplay.stop(); } catch(e){}
+                                try { webapis.avplay.close(); } catch(e){}
+                                avplayInitialized = false;
+                            }
+
+                            // 1. Ouvrir l'URL
+                            webapis.avplay.open(urlToPlay);
+                            avplayInitialized = true;
+
+                            // 2. Définir la zone d'affichage (plein écran)
+                            webapis.avplay.setDisplayRect(0, 0, window.innerWidth || 1920, window.innerHeight || 1080);
+
+                            // 3. Définir les écouteurs d'événements
+                            webapis.avplay.setListener({
+                                onbufferingstart: function() {
+                                    document.getElementById('status').innerText = "Mise en mémoire tampon...";
+                                    document.getElementById('status').style.display = 'block';
+                                },
+                                onbufferingcomplete: function() {
+                                    document.getElementById('status').innerText = "Flux chargé (Appuyez sur une touche pour la configuration)";
+                                    // Masquer le statut après quelques secondes pour plus de clarté
+                                    setTimeout(() => {
+                                        if (state === 'stream') {
+                                            document.getElementById('status').style.display = 'none';
+                                        }
+                                    }, 3000);
+                                },
+                                onerror: function(err) {
+                                    document.getElementById('status').style.display = 'block';
+                                    document.getElementById('status').innerText = "Erreur de lecture AVPlay: " + JSON.stringify(err);
+                                    console.error("AVPlay error:", err);
+                                },
+                                onstreamcompleted: function() {
+                                    console.log("Flux terminé");
+                                    stopStream();
+                                }
+                            });
+
+                            // 4. Préparer de façon asynchrone et lancer la lecture
+                            webapis.avplay.prepareAsync(function() {
+                                console.log("AVPlay préparé avec succès, démarrage...");
+                                webapis.avplay.play();
+                            }, function(err) {
+                                document.getElementById('status').style.display = 'block';
+                                document.getElementById('status').innerText = "Erreur de préparation AVPlay: " + JSON.stringify(err);
+                                console.error("AVPlay prepareAsync error:", err);
+                            });
+
+                        } catch (avPlayErr) {
+                            document.getElementById('status').style.display = 'block';
+                            document.getElementById('status').innerText = "Erreur d'initialisation AVPlay: " + avPlayErr.message;
+                            console.error("AVPlay Error:", avPlayErr);
+                        }
+                    } else {
+                        // Mode fallback (navigateur standard PC ou si webapis n'est pas dispo)
+                        document.getElementById('status').innerText = "Mode dégradé : webapis.avplay non disponible (tentative via balise vidéo standard)";
+                        
+                        const video = document.getElementById('camVideo');
+                        if (video) {
+                            video.style.display = 'block';
+                            video.src = urlToPlay;
+                            video.play().catch(playErr => {
+                                document.getElementById('status').innerText = "Erreur de lecture: " + playErr.message;
+                            });
+                        }
+                    }
                 })
                 .catch(err => {
+                    document.getElementById('status').style.display = 'block';
                     document.getElementById('status').innerText = "Erreur service: " + err.message;
                     // Retour automatique au formulaire après 4 secondes
                     setTimeout(() => {
@@ -469,9 +547,24 @@
             isHudVisible = false;
             if (hudTimer) clearTimeout(hudTimer);
             
-            const video = document.getElementById('camVideo');
-            video.pause();
-            video.src = "";
+            document.getElementById('status').style.display = 'block';
+            
+            if (typeof webapis !== 'undefined' && webapis.avplay && avplayInitialized) {
+                try {
+                    webapis.avplay.stop();
+                    webapis.avplay.close();
+                } catch (e) {
+                    console.error("Erreur lors de l'arrêt d'AVPlay:", e);
+                }
+                avplayInitialized = false;
+            } else {
+                const video = document.getElementById('camVideo');
+                if (video) {
+                    video.pause();
+                    video.src = "";
+                    video.style.display = 'none';
+                }
+            }
             
             document.getElementById('video-container').style.display = 'none';
             document.getElementById('video-hud').style.display = 'none';

@@ -9,11 +9,11 @@ const server = http.createServer((req, res) => {
 
     if (parsedUrl.pathname === '/get-stream') {
         const query = parsedUrl.query;
-        const ip = query.ip || '192.168.10.103';
-        const port = query.port || '554';
-        const user = query.user || 'admin';
-        const pass = query.pass || 'password';
-        const path = query.path || 'cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif';
+        const ip = query.ip !== undefined ? query.ip : '192.168.10.103';
+        const port = query.port !== undefined ? query.port : '554';
+        const user = query.user !== undefined ? query.user : 'admin';
+        const pass = query.pass !== undefined ? query.pass : 'password';
+        const path = query.path !== undefined ? query.path : 'cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif';
 
         // Nettoyer les espaces indésirables dans les paramètres
         let cleanIp = ip.trim().replace(/\s+/g, '');
@@ -67,8 +67,12 @@ const server = http.createServer((req, res) => {
         // Si aucun port n'est spécifié, ne pas ajouter de double point
         const portSuffix = cleanPort ? `:${cleanPort}` : '';
 
-        // Construction dynamique du flux RTSP
-        const streamUrl = `rtsp://${cleanUser}:${cleanPass}@${cleanIp}${portSuffix}/${cleanPath}`;
+        // Construction dynamique du flux RTSP (avec ou sans authentification)
+        let authPrefix = '';
+        if (cleanUser || cleanPass) {
+            authPrefix = `${cleanUser}:${cleanPass}@`;
+        }
+        const streamUrl = `rtsp://${authPrefix}${cleanIp}${portSuffix}/${cleanPath}`;
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ streamUrl }));
