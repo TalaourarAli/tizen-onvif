@@ -4,29 +4,72 @@ const url = require('url');
 // Crée un mini serveur local pour communiquer avec ton interface HTML
 const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    
+
     const parsedUrl = url.parse(req.url, true);
-    
+
     if (parsedUrl.pathname === '/get-stream') {
         const query = parsedUrl.query;
-        const ip = query.ip || '192.168.1.50';
+        const ip = query.ip || '192.168.10.103';
         const port = query.port || '554';
         const user = query.user || 'admin';
         const pass = query.pass || 'password';
-        const path = query.path || 'stream1';
+        const path = query.path || 'cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif';
+
+        // Nettoyer les espaces indésirables dans les paramètres
+        let cleanIp = ip.trim().replace(/\s+/g, '');
+        let cleanPort = port.trim().replace(/\s+/g, '');
+        let cleanPath = path.trim().replace(/\s+/g, '');
+        const cleanUser = user.trim();
+        const cleanPass = pass.trim();
+
+        // Si le chemin (path) ou l'IP est une URL complète, on extrait les informations
+        if (cleanPath.includes('://')) {
+            try {
+                const parsedPathUrl = url.parse(cleanPath, true);
+                if (parsedPathUrl.hostname) {
+                    cleanIp = parsedPathUrl.hostname;
+                }
+                if (parsedPathUrl.port) {
+                    cleanPort = parsedPathUrl.port;
+                }
+                cleanPath = (parsedPathUrl.pathname || '') + (parsedPathUrl.search || '');
+            } catch (e) {
+                // En cas d'erreur de parsing, on garde le path d'origine nettoyé
+            }
+        } else if (cleanIp.includes('://')) {
+            try {
+                const parsedIpUrl = url.parse(cleanIp, true);
+                if (parsedIpUrl.hostname) {
+                    cleanIp = parsedIpUrl.hostname;
+                }
+                if (parsedIpUrl.port) {
+                    cleanPort = parsedIpUrl.port;
+                }
+            } catch (e) {
+                // En cas d'erreur, on garde l'IP d'origine nettoyée
+            }
+        }
+
+        // Si l'IP contient toujours un port (ex: 192.168.10.103:554)
+        if (cleanIp.includes(':')) {
+            const parts = cleanIp.split(':');
+            cleanIp = parts[0];
+            if (!cleanPort) {
+                cleanPort = parts[1];
+            }
+        }
 
         // Éviter les doubles slashes (ex: si le chemin commence par /)
-        let normalizedPath = path;
-        if (normalizedPath.startsWith('/')) {
-            normalizedPath = normalizedPath.substring(1);
+        if (cleanPath.startsWith('/')) {
+            cleanPath = cleanPath.substring(1);
         }
 
         // Si aucun port n'est spécifié, ne pas ajouter de double point
-        const portSuffix = port ? `:${port}` : '';
+        const portSuffix = cleanPort ? `:${cleanPort}` : '';
 
-        // Logique ONVIF dynamique ou construction directe du flux
-        const streamUrl = `rtsp://${user}:${pass}@${ip}${portSuffix}/${normalizedPath}`;
-        
+        // Construction dynamique du flux RTSP
+        const streamUrl = `rtsp://${cleanUser}:${cleanPass}@${cleanIp}${portSuffix}/${cleanPath}`;
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ streamUrl }));
     } else {
