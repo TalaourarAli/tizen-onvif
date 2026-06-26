@@ -5,9 +5,5 @@
   "appName": "Caméra ONVIF",
   "appPath": "app/index.html",
   "serviceFile": "service.js",
-  "keys": {
-    "MediaPlay": true,
-    "MediaPause": true,
-    "Back": true
-  }
+  "keys": ["MediaPlay", "MediaPause", "Back"]
 }
