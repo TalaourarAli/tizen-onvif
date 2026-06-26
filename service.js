@@ -13,7 +13,7 @@ const server = http.createServer((req, res) => {
         const port = query.port !== undefined ? query.port : '554';
         const user = query.user !== undefined ? query.user : 'admin';
         const pass = query.pass !== undefined ? query.pass : 'password';
-        const path = query.path !== undefined ? query.path : 'cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif';
+        const path = query.path !== undefined ? query.path : 'cam/realmonitor?channel=1&subtype=0';
 
         // Nettoyer les espaces indésirables dans les paramètres
         let cleanIp = ip.trim().replace(/\s+/g, '');

@@ -308,7 +308,12 @@
             document.getElementById('input-port').value = savedPort || '554';
             document.getElementById('input-user').value = savedUser || 'admin';
             document.getElementById('input-pass').value = savedPass || 'password';
-            document.getElementById('input-path').value = savedPath || 'cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif';
+            
+            let currentPath = savedPath || 'cam/realmonitor?channel=1&subtype=0';
+            if (currentPath === 'cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif') {
+                currentPath = 'cam/realmonitor?channel=1&subtype=0';
+            }
+            document.getElementById('input-path').value = currentPath;
 
             updateFocus();
 
